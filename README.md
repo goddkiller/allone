@@ -30,15 +30,11 @@ AllOne 的代码是用seajs来管理依赖
 
 生成的目录如下：
 
->webroot/
->
->  |--js
->
->  |   |--sea-modules
->
->  |   |--src
->
->  |   |--seajs-config-dev.js
+		webroot/
+		  |--js
+		  |   |--sea-modules
+		  |   |--src
+		  |   |--seajs-config-dev.js
 
 js：所有js的集散地
 sea-modules：seajs 模块的所在目录（包括jquery\backbone等等的类库），也是未来src代码部署好后的所在地
