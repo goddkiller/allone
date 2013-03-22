@@ -1,0 +1,9 @@
+{
+  "spmConfig": {
+    "upload": {
+      "override": false,
+      "to": "to",
+      "dest": "dest2"
+    }
+  }
+}

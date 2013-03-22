@@ -1,0 +1,9 @@
+{
+  "spmConfig": {
+    "upload": {
+      "override": "abc",
+      "to": "to2",
+      "dest": "dest2"
+    }
+  }
+}

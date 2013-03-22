@@ -1,0 +1,8 @@
+{
+  "spmConfig": {
+    "upload": {
+      "override": false,
+      "to": "to",
+    }
+  }
+}

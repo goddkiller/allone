@@ -1,0 +1,1 @@
+define(function(a,b){var d='<div>hello</div>\n<input name="nihai" value=\'{"name": "a"}\'/>',e=a("../../core/js/config.js"),f=a("../../core/js/utils.js");b.say=function(){f.log("tpl----->"+d),f.log("config--->",e)}});
