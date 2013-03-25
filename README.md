@@ -22,6 +22,10 @@ AllOne 的代码是用seajs来管理依赖
 
 allone 是常用工具和库的集合，只是对spm和testacular有改进和二次开发。相关的类库都可以参考对应工具的文档。
 
+aio是给spm起的别名，防止已经安装了spm而造成名字冲突。所以有关aio的一切东西都可以参考spm的[文档](https://github.com/spmjs/spm/wiki)
+
+aiotest是testacular的别名，有关aiotest的一切都可以参考testacular的[文档](https://github.com/karma-runner/karma)，已经改名叫karma- -!
+
 ##第一步，初始化你的web root
 
 在web目录下,执行
@@ -79,9 +83,7 @@ test：会生成符合jasmine和testacular的单测文件模板
 
 examples：模块的使用示例(不必须)
 
-package.json：打包用的配置文件（就是spm所用的package.json，详细说明见spm的[官方文档](https://github.
-
-com/spmjs/spm/wiki/package.json)）
+package.json：打包用的配置文件（就是spm所用的package.json，详细说明见spm的[官方文档](https://github.com/spmjs/spm/wiki/package.json)）
 
 其他：.gitignore、Makefile、README.md，不提了，github相关，不必须
 
@@ -112,9 +114,42 @@ vi {{webroot}}/js/src/hello/src/hello.js
 		   	hello();
 		})
 
+##第四步，打包
 
-* [查看所有 issue](https://github.com/spmjs/spm/issues)
-* [新建 issue](https://github.com/spmjs/spm/issues/new)
+目前假设已经开发好了代码，准备打包上线了。
+
+在模块目录下{{webroot}}/js/src/hello下，命令行
+
+		aio build
+
+在dist目录下
+
+		webroot/
+		  |--js
+		     |--src
+		        |--hello
+		           |--dist
+		           		|--hello-debug.js
+		           		|--hello.js
+
+hello-debug.js: debug用js
+
+hello.js：压缩后的源码
+
+aio build与spm的build相同，更新请见[官方文档](https://github.com/spmjs/spm/wiki/SPM-build-%E5%90%88%E5%B9%B6%E6%A8%A1%E5%9D%97%E5%A4%84%E7%90%86%E7%9B%B8%E5%85%B3%E8%AF%B4%E6%98%8E)
+
+##第五步，部署
+
+在模块目录下{{webroot}}/js/src/hello下，命令行
+
+		aio deploy --to=../sea-modules
+
+修改index.html中的sea-debug.js为sea.js
+
+修改引用的配置文件seajs-config-dev.js为正式版seajs-config.js
+
+目前还是需要手动修改，马上会变成自动生成。
+
 
 
 
