@@ -28,6 +28,7 @@ Init.prototype.registerArgs = function() {
 var igNs = [];
 
 Init.prototype.execute = function(options, callback) {
+
   var that = this;
   var baseDir = this.baseDir = options.base || process.cwd();
 

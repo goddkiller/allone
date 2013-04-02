@@ -166,7 +166,6 @@ Install.prototype.execute = function(options, callback) {
             _modules = _.keys(sourceModsInfo).map(function(name) {
               return modInfo.root + '.' + name; 
             });
-            
             arg.callee.call(null, model, callback, _modules);
             return;
           }

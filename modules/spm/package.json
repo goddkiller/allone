@@ -78,8 +78,8 @@
   "readmeFilename": "README.md",
   "_id": "spm@1.7.7",
   "dist": {
-    "shasum": "5f311b865e884ab990a4b94c6162b623b5e022a1"
+    "shasum": "2b749b01e44bb998dc773379f4905b24a6cdf991"
   },
-  "_from": "spm@",
+  "_from": "spm@1.7.7",
   "_resolved": "https://registry.npmjs.org/spm/-/spm-1.7.7.tgz"
 }
