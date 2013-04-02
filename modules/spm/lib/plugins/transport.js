@@ -1,3 +1,4 @@
+'use strict';
 
 // 检查模块代码中是否包含 transport 文件，并对对应的文件进行处理。
 
@@ -67,7 +68,7 @@ plugin.compile = function(project, code, cb) {
       });
     } else if (moduleHelp.isLocalPath(include)) {
       include = moduleHelp.perfectLocalPath(include);
-      codes[include] = fsExt.raadFileSync(include);
+      codes[include] = fsExt.readFileSync(include);
       cb();
     } else {
 

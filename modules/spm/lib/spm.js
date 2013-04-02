@@ -1,7 +1,11 @@
-// 1. action 查找 
+// 1. action 查找
 // 2. action 执行
 
-var utils = require('util')
+'use strict';
+
+var utils = require('util');
+var async = require('async');
+
 var commander = require('./utils/commander.js').get();
 
 if (/spm(\.js)?$/.test(process.argv[1])) {
@@ -16,7 +20,7 @@ process.on('uncaughtException', function (err) {
   console.error('Caught exception: ' + err);
   console.segm();
   if (commander.verbose) {
-    utils.error(err.stack);  
+    utils.error(err.stack);
   }
   process.exit(1);
 });
@@ -34,22 +38,35 @@ spm.getAction = function(commandName) {
 };
 
 if (spm.cli) {
-  var command = commander.args[0];
 
-  var begin = new Date().getTime();
+  // 1.如果用户第二个参数是 grunt, 那么执行完第一个 action 后，会继续执行 grunt
 
-  ActionFactory.getActionObj(command).run(function(data) {
-    if (data && data.message) {
-      console.info(data.message);
-     }
-     
-     var end = new Date().getTime();
-     console.info('Total time: ' + (end - begin) / 1000 + 's');
-     console.info('Finished at: ' + (new Date()));
-     var usage = process.memoryUsage();
-     var all = Math.round(usage.heapTotal / (1024 * 1024));
-     var used = Math.round(usage.heapUsed / (1024 * 1024));
-     console.info('Final Memory: ' + used + 'M/' + all + 'M');
-     console.segm();
+  var args = commander.args;
+  var actions = [args[0]];
+
+  if (args[1] == 'grunt') {
+    actions.push(args[1]);
+  }
+
+  begin = new Date().getTime();
+
+  var begin, end, usage, all, used;
+  async.forEachSeries(actions, function(command, cb) {
+
+    ActionFactory.getActionObj(command).run(function(data) {
+      if (data && data.message) {
+        console.info(data.message);
+       }
+       cb();
+    });
+  }, function() {
+    end = new Date().getTime();
+    console.info('Total time: ' + (end - begin) / 1000 + 's');
+    console.info('Finished at: ' + (new Date()));
+    usage = process.memoryUsage();
+    all = Math.round(usage.heapTotal / (1024 * 1024));
+    used = Math.round(usage.heapUsed / (1024 * 1024));
+    console.info('Final Memory: ' + used + 'M/' + all + 'M');
+    console.segm();
   });
 }

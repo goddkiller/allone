@@ -1,3 +1,5 @@
+'use strict';
+
 var path = require('path');
 var async = require('async');
 var _ = require('underscore');
@@ -260,6 +262,11 @@ depPlugin.findGlobalModuleDeps = function(moduleName, callback) {
         callback(defineId);
         return;
       }
+    }
+
+    if (moduleHelp.isCss(defineId)) {
+      callback([]);
+      return;
     }
 
     var depsMapping = parseMinDepsByModuleCode(defineId, moduleCode);

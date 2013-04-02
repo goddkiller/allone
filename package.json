@@ -1,6 +1,6 @@
 {
     "name": "allone",
-    "version": "0.4.6",
+    "version": "0.4.7",
     "description": "Node.js module to install mediav frontend framework",
     "preferGlobal": "true",
     "main": "index.js",

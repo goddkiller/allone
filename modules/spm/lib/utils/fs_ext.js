@@ -1,5 +1,7 @@
  // fileoverview Extensions for filesystem utilities.
 
+'use strict';
+
 require('shelljs/global');
 
 var fs = require('fs');
@@ -84,6 +86,7 @@ exports.readFile = function(filepath, callback) {
 exports.readFileSync = function(filePath, filename) {
   var fileStr = null;
   try {
+    filename = filename || '';
     fileStr = fs.readFileSync(path.join(filePath, filename), argv.encoding);
     if (fileStr.indexOf('\ufeff') === 0) {
       fileStr = fileStr.substring(1, fileStr.length);

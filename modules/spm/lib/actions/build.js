@@ -3,6 +3,8 @@
 // 如果没有package.json则启动项目参数解析插件，去解析对应的参数和目录内容
 // 构成非标准项目对象。
 
+'use strict';
+
 var util = require('util');
 var path = require('path');
 var async = require('async');
@@ -53,6 +55,8 @@ Build.prototype.registerArgs = function() {
   opts.option('--throwErrorOnDepNotFound [true or false]',
           '当依赖找不到的时候，是否终止执行, 默认是 false');
   opts.option('--with-debug [debugName]', 'debug 模块的标志, 默认 debug');
+  
+  opts.option('--build-config [string]', '指定 package.json 的位置');
 
   // TODO 暂时没有想好如何更好的传递 data 数据
   //opts.option('--filter', '是否开启变量过滤, 默认关闭', parseBoolean, false);

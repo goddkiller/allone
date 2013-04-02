@@ -1,3 +1,5 @@
+'use strict';
+
 var path = require('path');
 var shelljs = require('shelljs');
 
@@ -47,8 +49,8 @@ zipPlugin.run = function(project, callback) {
   var target = path.join(targetDir, project.name + '.zip');
   var cmd = [];
   cmd.push('java -jar ' + jar);
-  cmd.push('-src ' + tempZipPath);
-  cmd.push('-target ' + target);
+  cmd.push('-src "' + tempZipPath + '"');
+  cmd.push('-target "' + target + '"');
   cmd = cmd.join(' ');
 
   shelljs.exec(cmd);

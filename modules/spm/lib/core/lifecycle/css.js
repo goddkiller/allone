@@ -3,9 +3,9 @@ module.exports = [{
 }, {
     'resources': ['resources'] // 代码输出到build目录.
 }, {
-    'compile': ['less'] // 代码编译.
+    'compile': ['less', 'stylus'] // 代码编译.
 }, {
-    'analyse': ['lint'] //依赖分析.
+    'analyse': ['css_prebuild', 'lint'] //依赖分析.
 }, {
     'output': ['output'] // 合并输出.
 }, {

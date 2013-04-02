@@ -8,11 +8,15 @@
 // 根据用户的action, 分析出插件列表。
 // 每一个阶段会有一个模块，负责本阶段插件的参数信息准备调用和处理.
 
+'use strict';
+
 var path = require('path');
 var vm = require('vm');
 var async = require('async');
 var request = require('request');
 var _ = require('underscore');
+var npm = require('npm');
+var shelljs= require('shelljs');
 
 var pluginConfig = require('./plugin_config.js');
 var moduleHelp = require('../utils/module_help.js');
@@ -235,7 +239,7 @@ function loadPlugin(model, pluginName, callback) {
       loadPlugin(model, filepath, callback);
     });
   } else {
-    console.warn('not support plugin ' + modId);
+    console.warn('not support plugin ' + pluginName);
     callback(null);
   }
 }
@@ -285,7 +289,13 @@ exports.downloadPlugins = function(model, callback) {
 
   async.forEach(_.keys(plugins), function(key, cb) {
     var p = plugins[key];
-    var pId = p.main || p;
+    var pId = p.main || p.id || p;
+    var config = p.config || {};
+
+    if (/^npm:/.test(pId)) {
+      downloadNpmPlugin(model, key, pId, config, cb);
+      return;
+    }
 
     downloadPlugin(model, pId, function(modId, filepath) {
       if (!modId) {
@@ -301,12 +311,62 @@ exports.downloadPlugins = function(model, callback) {
       }
 
       // 通过 package.json 的 output 来获取插件信息. 只要 output 配置的js 模块，都认为是一个插件.
-       loadSubPlugin(key, path.dirname(filepath));
+      loadSubPlugin(key, path.dirname(filepath), config, cb);
       // 插件注册到 PluginCenter 中 key/name 的形式注册.
-      cb();
     });
+  }, function() {
+    callback();
   });
-  callback();
+};
+
+function downloadNpmPlugin(model, key, pid, config, cb) {
+  var pid = pid.slice(4);
+
+  npm.load({}, function (er) {
+
+    npm.view(pid, function(err, obj) {
+      if (err) {
+        console.warn('npm 插件 ' + pid + ' 加载失败');
+      } 
+
+      var pkg = obj[_.keys(obj)[0]];
+
+      var dir = npm.prefix = path.join(model.globalHome, 'sources', 'npm', pkg.name, pkg.version);
+      async.waterfall([function(callback) {
+        if (!fsExt.existsSync(dir)) {
+          npm.commands.install([pid], function(err, data) {
+            if (err) {
+              throw new Error('插件 ' + pid + ' 依赖模块下载失败');
+            } 
+
+            // 把模块从 node_modules 移出来.
+            var temp = path.join(dir, '__temp');
+            shelljs.mkdir(temp);
+            shelljs.mv('-f', path.join(dir, 'node_modules', pkg.name, '*'), temp);
+            shelljs.rm('-r', path.join(dir, 'node_modules'));
+            shelljs.mv(path.join(temp, 'dist', '*'), dir);
+            shelljs.mv(path.join(temp, 'node_modules'), dir);
+            shelljs.mv(path.join(temp, 'package.json'), dir);
+            shelljs.rm('-rf', temp);
+            //shelljs.mv(path.join(temp, '*'), dir);
+            callback(null, dir);
+          });
+        } else {
+          callback(null, dir);
+        }
+      }, function(dir, callback) {
+        // 替换插件代码的模块依赖为相对依赖.
+        replacePluginRequire(dir, pkg.dependencies); 
+        callback(null, dir); 
+      }, function(dir, callback) {
+        cacheModule(key, dir, pkg, config);
+        callback(null);
+      }], function(err, result) {
+        cb(); 
+      });
+    });
+    // 把安装的模块安装到 ~/.spm/sources/ 插件的 node_moduels
+  });
 };
 
 var generatePluginId = (function(rule) {
@@ -315,21 +375,86 @@ var generatePluginId = (function(rule) {
   };
 }('{{root}}/{{name}}/{{moduleName}}'));
 
-function loadSubPlugin(key, dir) {
+// 目前标准的 CMD 模块允许一个模块输出多个子模块，插件是不是应该限制只有一个模块。
+// 而且模块的名字和项目名称一致?
+function loadSubPlugin(key, dir, config, callback) {
+  config = config || {};
   var packageJsonPath = path.join(dir, 'package.json');
-  var obj;
   var generateModuleId = moduleHelp.generateModuleId;
+  var obj;
+
   if (fsExt.existsSync(packageJsonPath)) {
     obj = JSON.parse(fsExt.readFileSync(packageJsonPath));
 
-    _.keys(obj.output).forEach(function(name) {
-      if (moduleHelp.isJs(name)) {
-        // find plugin
-        obj.moduleName = moduleHelp.getBaseModule(name);
-        var pluginPath = path.join(dir, name);
-        PluginCenter[generatePluginId(obj)] = loadPlugin(null, pluginPath);
-        PluginCenter[key + '/' + obj.moduleName] = PluginCenter[generatePluginId(obj)];
+    var deps = obj.dependencies;
+    
+    if (!_.isEmpty(deps) && !fsExt.existsSync(path.join(dir, 'node_modules'))) {
+
+      console.info('开始下载插件' + key + '的 npm 模块依赖....');
+      //npm.dir = path.join(path.dirname(npm.dir), './abc')
+      // 加载插件依赖的 npm 模块.
+      npm.load({}, function (er) {
+        if (er) {
+          throw new Error('插件 ' + generatePluginId(obj) + ' 依赖模块下载失败');
+        } 
+
+        // 把安装的模块安装到 ~/.spm/sources/ 插件的 node_moduels
+        npm.prefix = dir;
+
+        var installMods = _.keys(deps).map(function(dep) {
+          return dep + '@' + deps[dep];
+        });
+
+        npm.commands.install(installMods, function (er, data) {
+          if (er) {
+            throw new Error('插件 ' + generatePluginId(obj) + ' 依赖模块下载失败');
+          } 
+
+          replacePluginRequire(dir, deps); 
+          cacheModule(key, dir, obj, config);
+          callback();
+        });
+      })
+    } else {
+      if (!_.isEmpty(deps)) {
+        replacePluginRequire(dir, deps); 
+      }
+      cacheModule(key, dir, obj, config);
+      callback();
+    }
+  }
+}
+
+function replacePluginRequire(dir, deps) {
+  // 把插件中的 require 的代码 替换成相对路径.
+  var pluginMods = fsExt.list(dir).filter(function(f) {
+    return !/^node_modules/.test(f) && /\.js$/.test(f);
+  });
+
+  pluginMods.forEach(function(mod) {
+    var code = fsExt.readFileSync(dir, mod);
+    code = Ast.replaceRequireValue(code, function(value) {
+      if (deps[value]) {
+        return path.join(dir, 'node_modules', value);
+      } else {
+        return value; 
       }
     });
-  }
+
+    fsExt.writeFileSync(path.join(dir, mod), code);
+  });
+}
+
+function cacheModule(key, dir, obj, config) {
+  _.keys(obj.output).forEach(function(name) {
+    if (moduleHelp.isJs(name)) {
+      // find plugin
+      obj.moduleName = moduleHelp.getBaseModule(name);
+      var pluginPath = path.join(dir, name);
+      var plugin = loadPlugin(null, pluginPath);
+      plugin.config = config;
+      PluginCenter[generatePluginId(obj)] = plugin;
+      PluginCenter[key + '/' + obj.moduleName] = plugin;
+    }
+  });
 }

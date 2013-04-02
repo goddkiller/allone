@@ -1,3 +1,4 @@
+'use strict';
 
 // 部署模块到远程服务器.
 var path = require('path');
@@ -133,8 +134,8 @@ deployPlugin.deployToServer = function(project, key, server, callback) {
   var cmd = [];
   cmd.push('java -jar ' + dir);
   cmd.push('-h ' + host);
-  cmd.push('-l ' + localPath);
-  cmd.push('-r ' + remotePath);
+  cmd.push('-l "' + localPath + '"');
+  cmd.push('-r "' + remotePath + '"');
   cmd.push('-u ' + username);
   cmd.push('-p ' + password);
 
@@ -179,6 +180,11 @@ function perfectLocalPath(localPath) {
 }
 
 function isLocalPath(localPath) {
+
+  if (fsExt.existsSync(localPath)) {
+    return true;
+  }
+  
   return localPath.indexOf('.') === 0 ||
      localPath.indexOf('/') === 0;
 }

@@ -121,7 +121,7 @@ function manageConfigCache(req, res, next) {
 
   if (method === 'GET') {
     if (u === '/config.json') {
-      str = jsbeautify.js_beautify(JSON.stringify(configCache));
+      var str = jsbeautify.js_beautify(JSON.stringify(configCache));
       res.setHeader('Content-Type', 'application/json');
       res.end(str);
     } else if (u === '/_reset') {

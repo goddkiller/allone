@@ -1,3 +1,5 @@
+'use strict';
+
 var path = require('path');
 var url = require('url');
 var semver = require('semver');
@@ -33,10 +35,6 @@ var isTpl = exports.isTpl = function(filepath) {
 
 exports.isCoffee = function(filepath) {
   return  /\.coffee$/.test(filepath);
-};
-
-exports.isLess = function(filepath) {
-  return  /\.less$/.test(filepath);
 };
 
 exports.isJson = function(filepath) {

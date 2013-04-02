@@ -1,241 +1,124 @@
 // css 处理插件
-// 用户可以通过 convertStyle 可以在命令中和package.json覆盖默认行为.
-// convertStyle:
-//   none: 不处理
-//   inline: 内嵌
-//   js: 生成异步加载js
+// @since 1.7 规则改为: js 模块中依赖的 css 模块始终会被被转换为 js 模块，然后产生的css.js 模块文件会被合并到对应依赖的 js 模块文件中.
+// 具体参看 https://github.com/spmjs/spm/issues/641#issuecomment-14102073
+// 背景:
+// 1. 其中内部依赖的 css 模块也可以需要进行依赖合并，所以需要等到 css 合并流程走完后才能合并。
+// 2. 由于依赖的 css 模块是 js 的必需附属品，所以他的依赖关系可以不出现在依赖列表中，因为他一定被合并到文件中了.
+// 实现:
+// 1. 首先我们需要删除 css 的模块的依赖，避免影响到后续的正常的合并。
+// 2. 然后我们需要记录住对应的模块需要合并的 css 模块。
+// 3. 开始进行正常流程的合并输出
+// 4. 正常合并完成后，我们在去检查输出模块是否有需要合并的 css 模块，然后进行合并.
+
+'use strict';
 
 var async = require('async');
 var path = require('path');
-var util = require('util');
-var UglifyJS = require('uglify-js');
 
 var Plugin = require('../core/plugin.js');
 var cleanCss = require('../compress/clean_css.js');
 
 var fsExt = require('../utils/fs_ext.js');
 var moduleHelp = require('../utils/module_help.js');
-var depUtil = require('../utils/dependences.js');
+var StringUtil = require('../utils/string.js');
 var Ast = require('../utils/ast.js');
 
 var isCss = moduleHelp.isCss;
+var isRelative = moduleHelp.isRelative;
 var cssPlugin = module.exports = Plugin.create('css');
 
 cssPlugin.run = function(project, callback) {
+  var that = this;
+  cssPlugin.project = project;
+  project.tempOutput = {};
   var build = cssPlugin.build = project.buildDirectory;
   var moduleCache = project.moduleCache;
 
-  var convertStyle = project.getConfig('convertStyle') || 'inline';
-
-  var cssCache = this.cssCache = {};
   var modules = fsExt.list(build, /js$/);
 
-  var queue = async.queue(function(cssModule, callback) {
-    var cssModulePath = path.join(build, cssModule);
-    cleanCss(cssModulePath, function(code) {
-      cssCache[cssModule] = code.replace(/'/g, '"');
-      callback();
-    });
-  }, 5);
-
-  modules = modules.filter(function(moduleName) {
-    moduleName = moduleHelp.normalizeRelativeMod(moduleName);
+  async.forEachSeries(modules, function(moduleName, cb) {
     var allDeps = moduleCache.getAllDeps(moduleName) || [];
+    var modId = project.getModuleId(moduleName);
+    var deps = project.moduleDepMapping[modId];
 
     var hasCssMod = allDeps.some(function(dep) {
+      dep = project.getGlobalModuleId(dep, true);
       return isCss(dep);
     });
 
     if (!hasCssMod) {
-      return false;
-    } else {
-      allDeps.forEach(function(depModName) {
-        if (isCss(depModName)) {
-          queue.push(getDepModPath(moduleName, depModName));
-        }
-      });
-      return true;
+      cb();
+      return;
     }
-  });
 
-  if (!queue.length()) {
-    // 没有要处理的
-    callback();
-    return;
-  }
+    // 提前加载 css 模块文件，因为 css 模块包含全局模块，存在异步处理.
 
-  queue.drain = function() {
-    modules.forEach(function(moduleName) {
-      var codePath = path.join(build, moduleName);
-      var code = fsExt.readFileSync(codePath);
-      if (convertStyle === 'inline') {
-        code = getReplacedImportStyleCode(moduleName);
-      } else if (convertStyle === 'js') {
-        code = getReplacedRequireCssJsCode(moduleName);
+    async.forEach(allDeps, function(dep, cb) {
+      var cssDepId;
+      var isLocal = true;
+      var newDep = project.getGlobalModuleId(dep, true);
+
+      if (!isCss(newDep)) {
+        cb();
+        return;
       }
 
-      // 如果用户使用了 inline 和 js 需要 说明用户使用了 require('./xxx.css');
-      var modId = project.getModuleId(moduleName);
-      var deps = project.moduleDepMapping[modId];
-      if (convertStyle !== 'none') {
-        // 代码不做变化，在deps中删除css相对依赖.
-        project.moduleDepMapping[modId] = deps.filter(function(dep) {
-          return !(moduleHelp.isRelative(dep) && isCss(dep));
-        });
-      } else {
-        // 检查模块内对 css 的依赖，是否添加到了，output中
-        // 并检查 require 的 css 文件是否是被合并的 css 文件。
-        code = cssRequireCheck(getCssOutput(project.output), moduleName, deps);
-      }
-      fsExt.writeFileSync(codePath, code);
+      deps.splice(deps.indexOf(dep), 1);
+
+      moduleCache.addCssDep(moduleName, dep);
+      cb();
+
+    }, function() {
+      // 替换 css 模块，并重新输出 js 模块.
+      that.findCssModAndReplace(moduleName, function(code) {
+        var codePath = path.join(build, moduleName);
+        fsExt.writeFileSync(codePath, code);
+        cb(); 
+      });
     });
-    callback();
-  };
+  }, function(err) {
+    callback(); 
+  });
 };
 
-function getCssOutput(output) {
-  var cssOutput = {};
-
-  Object.keys(output).forEach(function(key) {
-    if (isCss(key)) {
-      var value = output[key];
-      if (typeof value === 'string') {
-        value = [value];
-      } else {
-        value = value.slice(0);
-      }
-
-      value = value.map(function(v) {
-        return relativeModule(v);
-      });
-
-      cssOutput[relativeModule(key)] = value;
-    }
-  });
-
-  return cssOutput;
-}
-
-// a.js ==> ./a.js
-// b.css ==> ./b.css
-function relativeModule(name) {
-   if (name.indexOf('.') !== 0) {
-     return './' + name;
-   } else {
-     return name;
-   }
-}
-
-// 需要根据 js 模块的路径计算出 css 模块的位置。
-function cssRequireCheck(cssOutput, moduleName, deps) {
-  var build = cssPlugin.build;
-  var code = fsExt.readFileSync(path.join(build, moduleName));
-
-  return Ast.replaceRequireValue(code, function(depModName) {
-    if (!isCss(depModName)) {
-      return depModName;
-    }
-
-    var depModNamePath = moduleHelp.getBaseDepModulePath(moduleName, depModName);
-    var keys = Object.keys(cssOutput);
-
-    if (cssOutput[depModNamePath]) return depModName;
-
-    for (var i = 0, len = keys.length; i < len; i++) {
-      var key = keys[i];
-      var value = cssOutput[key];
-
-      if (util.isArray(value) && value.indexOf(depModNamePath) > -1) {
-
-        // 需要对模块的依赖列表也进行检查替换。
-        var realDep = value[value.indexOf(depModNamePath)];
-        var depIndex = deps.indexOf(realDep);
-        deps.splice(depIndex, 1, key);
-        return key;
-      }
-    }
-    throw new Error(moduleName + ' css require error!( ' + match + ' )');
-  });
-}
-
-function getReplacedImportStyleCode(moduleName) {
-  var build = cssPlugin.build;
-  var code = fsExt.readFileSync(path.join(build, moduleName));
-
-  return Ast.replaceRequireNode(code, isCss, function(node, depModName) {
-    return getImportStyleNode(moduleName, depModName);
-  });
-}
-
-// 1. 输出csjs
-// 2. replace require
-// 3. add output
-// 4. add deps
-function getReplacedRequireCssJsCode(moduleName) {
-  var build = cssPlugin.build;
-  var code = fsExt.readFileSync(path.join(build, moduleName));
-  return Ast.replaceRequireValue(code, function(depModName) {
-    if (!isCss(depModName)) {
-      return depModName;
-    }
-
-    outputCssJs(moduleName, depModName);
-    addCssJsToOutput(moduleName, depModName);
-    addCssJsToDependencies(moduleName, depModName);
-    return depModName + '.js';
-  }); 
-}
-
-function getImportStyle(modName, depModName) {
-  var cssModName = getDepModPath(modName, depModName);
-  var cssModId = cssPlugin.project.getModuleId(cssModName);
-  var cssCode = cssPlugin.cssCache[cssModName];
-  return 'seajs.importStyle(' + "'" + cssCode + "', '" + cssModId + "')";
-}
-
-function getImportStyleNode(modName, depModName) {
-  var styleNodeStr = getImportStyle(modName, depModName);
-  var ast = UglifyJS.parse(styleNodeStr);
-  var styleNode = null;
-
-  var findImportStyle = new UglifyJS.TreeWalker(function(node) {
-    if (node instanceof UglifyJS.AST_Call && node.start.value === 'seajs') {
-      styleNode = node.clone();
-      return true;
-    }
-  });
-  ast.walk(findImportStyle);
-  if (!styleNode) {
-    throw new Error("解析样式依赖错误(" + modName + ' ' + depModName + ")");
-  }
-  return styleNode;
-}
-
-function outputCssJs(modName, depModName) {
-  var cssModPath = path.join(cssPlugin.build, getDepModPath(modName, depModName));
-  var cssJsModPath = cssModPath + '.js';
-  var code = 'define(function(require) {' + getImportStyle(modName, depModName) + '})';
-  fsExt.writeFileSync(cssJsModPath, code);
-}
-
-function addCssJsToOutput(modPath, depModName) {
-  var project = cssPlugin.project;
+cssPlugin.findCssModAndReplace = function(moduleName, cb) {
+  var build = this.build;
+  var project = this.project;
   var output = project.output;
-  var cssJsModName = getDepModPath(modPath, depModName) + '.js';
-  output[cssJsModName] = [cssJsModName];
+  var tempOutput = project.tempOutput;
+  var code = fsExt.readFileSync(path.join(build, moduleName));
+
+  code = Ast.replaceRequireValue(code, function(depModName) {
+    var cssJsCode, cssDepId;
+
+    var newDep = project.getGlobalModuleId(depModName, true);
+    if (!isCss(newDep)) { 
+      return depModName;
+    }
+
+    if (isRelative(newDep, build)) {
+      // 检查相对依赖的 css 模块是否在 output 有输出，如果没有，需要临时添加进去
+      // 后续的程序会对临时添加产生的文件进行删除.
+      if (!(output[newDep] || output[path.normalize(newDep)])) {
+        output[path.normalize(newDep)] = '.'; 
+        tempOutput[path.normalize(newDep)] = '.'; 
+      }
+      cssDepId = getCssModuleId(moduleName, newDep); 
+    } else {
+      cssDepId = newDep;
+    }
+    
+    return cssDepId;
+  }); 
+  cb(code);
+};
+
+function getCssModuleId(modName, depModName) {
+  var cssModName = getDepModPath(modName, depModName);
+  return cssPlugin.project.getModuleId(cssModName);
 }
 
 function getDepModPath(mainMod, depMod) {
   var project = cssPlugin.project;
   return project.getDepModulePath(mainMod, depMod);
-}
-
-function addCssJsToDependencies(moduleName, depModName) {
-  var project = cssPlugin.project;
-  var moduleId = project.getModuleId(moduleName);
-  var cssJsDepModName = depModName + '.js';
-  var deps = project.moduleDepMapping[moduleId];
-  if (deps.indexOf(cssJsDepModName) < 0) {
-    deps.push(cssJsDepModName);
-  }
 }

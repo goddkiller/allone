@@ -1,4 +1,3 @@
 {
-  "sources": ["http://10.16.1.240:8800/"],
-  "root": ""
+  "sources": ["http://modules.spmjs.org"]
 }

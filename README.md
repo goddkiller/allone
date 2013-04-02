@@ -142,7 +142,7 @@ aio build与spm的build相同，更新请见[官方文档](https://github.com/sp
 
 在模块目录下{{webroot}}/js/src/hello下，命令行
 
-		aio deploy --to=../sea-modules
+		aio deploy --to=../../sea-modules
 
 修改index.html中的sea-debug.js为sea.js
 

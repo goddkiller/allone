@@ -3,11 +3,12 @@
  * @author yyfrankyy@gmail.com (Frank Xu)
  */
 
+'use strict';
+
 var fs = require('fs');
 var path = require('path');
 var colors = require('colors');
 
-var StringUtil = require('../utils/string.js');
 var GLOBAL_CONFIG = require('../config.js');
 var PROJECT_CONFIG = require('../../package.json');
 var ActionFactory = require('../core/action_factory.js');
