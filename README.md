@@ -104,8 +104,9 @@ vi {{webroot}}/js/src/hello/src/hello.js
 
 在js/seajs-config-dev.js中增加模块路径和缩写的对应
 
-		'hello' : '../../js/src/hello/src/hello.js'
+		'hello' : './js/src/hello/src/hello.js'
 
+PS:seajs的路径解析可以参见[路径](https://github.com/goddkiller/allone/wiki/seajs%E7%9A%84path)
 暂时这步还是需要手工加一下，马上会把这步增加到aio init中去
 
 在index.html中use hello模块
