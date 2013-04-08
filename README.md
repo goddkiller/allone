@@ -152,6 +152,11 @@ aio build与spm的build相同，更新请见[官方文档](https://github.com/sp
 目前还是需要手动修改，马上会变成自动生成。
 
 
+MORE
+---
+* [更新记录](https://github.com/goddkiller/allone/wiki/AllOne-%E6%9B%B4%E6%96%B0%E8%AE%B0%E5%BD%95)
+* [引用了bootstrap等带有css样式的库，为什么会有闪烁？](https://github.com/goddkiller/allone/wiki/%E8%A7%A3%E5%86%B3%E5%85%AC%E7%94%A8%E5%BA%93%E4%B8%8B%E5%BC%82%E6%AD%A5%E5%8A%A0%E8%BD%BDcss%E6%97%B6%EF%BC%8C%E5%AF%BC%E8%87%B4%E4%B8%80%E7%9E%AC%E9%97%B4%E9%97%AA%E7%83%81%E7%9A%84%E9%97%AE%E9%A2%98)
+* [编译mustache模板为一个js函数](https://github.com/goddkiller/allone/wiki/%E6%8A%8Amustache%E6%A8%A1%E6%9D%BF%E7%BC%96%E8%AF%91%E6%88%90%E4%B8%80%E4%B8%AA%E4%B8%8D%E4%BE%9D%E8%B5%96%E4%BA%8Emustache%E7%9A%84js%E5%87%BD%E6%95%B0)
 
 
 

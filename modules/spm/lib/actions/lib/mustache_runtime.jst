@@ -1,4 +1,4 @@
-function test (view) {
+function {{name}} (view) {
   var r = {};
 
   function escapeHtml(string) {
@@ -25,7 +25,6 @@ function test (view) {
         }
         return buffer;
       }
-	  // console.log(value)
       return value ? callback(context.p(value), this) : "";
     case "function":
       // TODO: The text should be passed to the callback plain, not rendered.
@@ -132,10 +131,7 @@ function test (view) {
   };
 
   var  c = new _c(view);
-  return "" + r._section("items", c, function (c, r) {
-    return "" + r._name("\u002e", c, true);
-  }); 
-
+  {{&body}}
 }
 
 
