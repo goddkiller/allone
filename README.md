@@ -17,6 +17,8 @@ AllOne 的代码是用seajs来管理依赖
 
 好了，已经完成安装了。很简单吧。
 
+更新更加单，再次执行安装命令就可以了
+
 入门，例行的Hello World！
 ---
 
@@ -53,6 +55,13 @@ seajs-config-dev.js：开发时引用此文件。这个配置文件维护了模�
 
 index.html：一个示例，方便于模仿上手。
 
+bootstrap.html：应用了bootstrap的示例
+
+###更新aio模板
+
+front-frame-template是基础类库的文件，会不定期的更新。[更新记录](https://github.com/goddkiller/allone/wiki/AllOne-%E6%9B%B4%E6%96%B0%E8%AE%B0%E5%BD%95)
+
+更新方法是手动删除/js/sea-modules，然后重新aio init
 
 ##第二步，创建第一个模块, 就叫它hello吧
 
